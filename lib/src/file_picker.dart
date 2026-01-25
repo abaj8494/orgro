@@ -39,11 +39,36 @@ Future<NativeDirectoryInfo?> pickDirectory({String? initialDirUri}) async {
         );
 }
 
-Future<NativeDataSource> readFileWithIdentifier(String identifier) async =>
-    FilePickerWritable().readFile(
-      identifier: identifier,
-      reader: LoadedNativeDataSource.fromExternal,
+Future<NativeDataSource> readFileWithIdentifier(
+  String identifier, {
+  String? parentDirIdentifier,
+  String? rootDirIdentifier,
+}) async {
+  final source = await FilePickerWritable().readFile(
+    identifier: identifier,
+    reader: LoadedNativeDataSource.fromExternal,
+  );
+  debugPrint('readFileWithIdentifier: name=${source.name}, persistable=${source.persistable}, parentDir=$parentDirIdentifier, rootDir=$rootDirIdentifier');
+  // If any directory info provided, create a new source with that info
+  if (parentDirIdentifier != null || rootDirIdentifier != null) {
+    // If only root is provided, use it as parent too (for search results)
+    final effectiveParent = parentDirIdentifier ?? rootDirIdentifier;
+    final effectiveRoot = rootDirIdentifier ?? parentDirIdentifier;
+    // Files from configured folder tree have persistent access via the tree URI,
+    // so force persistable=true when rootDirIdentifier is provided
+    final isPersistable = rootDirIdentifier != null ? true : source.persistable;
+    debugPrint('readFileWithIdentifier: setting persistable=$isPersistable (original=${source.persistable})');
+    return NativeDataSource(
+      source.name,
+      source.identifier,
+      source.uri,
+      persistable: isPersistable,
+      parentDirIdentifier: effectiveParent,
+      rootDirIdentifier: effectiveRoot,
     );
+  }
+  return source;
+}
 
 Future<bool> canObtainNativeDirectoryPermissions() async =>
     FilePickerWritable().isDirectoryAccessSupported();

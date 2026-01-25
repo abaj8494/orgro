@@ -42,6 +42,8 @@ class RememberedFile {
         ),
         // Keep reading from 'pinnedIdx' for backward compatibility
         starredIdx: json['pinnedIdx'] as int? ?? -1,
+        parentDirIdentifier: json['parentDirIdentifier'] as String?,
+        rootDirIdentifier: json['rootDirIdentifier'] as String?,
       );
 
   const RememberedFile({
@@ -50,6 +52,8 @@ class RememberedFile {
     required this.uri,
     required this.lastOpened,
     this.starredIdx = -1,
+    this.parentDirIdentifier,
+    this.rootDirIdentifier,
   }) : assert(starredIdx >= -1, 'Starred index must be -1 or >= 0');
 
   final String identifier;
@@ -57,6 +61,8 @@ class RememberedFile {
   final String uri;
   final DateTime lastOpened;
   final int starredIdx;
+  final String? parentDirIdentifier;
+  final String? rootDirIdentifier;
 
   bool get isStarred => starredIdx != -1;
   bool get isNotStarred => !isStarred;
@@ -68,18 +74,22 @@ class RememberedFile {
       name == other.name &&
       uri == other.uri &&
       lastOpened == other.lastOpened &&
-      starredIdx == other.starredIdx;
+      starredIdx == other.starredIdx &&
+      parentDirIdentifier == other.parentDirIdentifier &&
+      rootDirIdentifier == other.rootDirIdentifier;
 
   @override
-  int get hashCode => Object.hash(identifier, name, uri, lastOpened, starredIdx);
+  int get hashCode => Object.hash(identifier, name, uri, lastOpened, starredIdx, parentDirIdentifier, rootDirIdentifier);
 
-  Map<String, Object> toJson() => {
+  Map<String, Object?> toJson() => {
     'identifier': identifier,
     'name': name,
     'uri': uri,
     'lastOpened': lastOpened.millisecondsSinceEpoch,
     // Keep writing to 'pinnedIdx' for backward compatibility
     'pinnedIdx': starredIdx,
+    if (parentDirIdentifier != null) 'parentDirIdentifier': parentDirIdentifier,
+    if (rootDirIdentifier != null) 'rootDirIdentifier': rootDirIdentifier,
   };
 
   RememberedFile copyWith({
@@ -88,12 +98,16 @@ class RememberedFile {
     String? uri,
     DateTime? lastOpened,
     int? starredIdx,
+    String? parentDirIdentifier,
+    String? rootDirIdentifier,
   }) => RememberedFile(
     identifier: identifier ?? this.identifier,
     name: name ?? this.name,
     uri: uri ?? this.uri,
     lastOpened: lastOpened ?? this.lastOpened,
     starredIdx: starredIdx ?? this.starredIdx,
+    parentDirIdentifier: parentDirIdentifier ?? this.parentDirIdentifier,
+    rootDirIdentifier: rootDirIdentifier ?? this.rootDirIdentifier,
   );
 
   @override

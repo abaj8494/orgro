@@ -19,6 +19,7 @@ Future<void> loadAndRememberFile(
   if (dataSource == null) return;
   if (!context.mounted) return;
 
+  debugPrint('loadAndRememberFile: ${dataSource.name}, persistable=${dataSource.persistable}');
   final rememberedFiles = RememberedFiles.of(context);
   final bucket = RestorationScope.of(context);
   if (dataSource.persistable) {
@@ -27,6 +28,8 @@ Future<void> loadAndRememberFile(
       name: dataSource.name,
       uri: dataSource.uri,
       lastOpened: DateTime.now(),
+      parentDirIdentifier: dataSource.parentDirIdentifier,
+      rootDirIdentifier: dataSource.rootDirIdentifier,
     );
     rememberedFiles.add([loadedFile]);
     debugPrint('Saving file ID to bucket $bucket');

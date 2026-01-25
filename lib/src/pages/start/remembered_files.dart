@@ -205,7 +205,7 @@ class _RememberedFileManagementListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Slidable(
       key: ValueKey(recentFile),
-      endActionPane: ActionPane(
+      startActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
           SlidableAction(
@@ -239,7 +239,11 @@ class _RememberedFileManagementListTile extends StatelessWidget {
             dialogTitle: AppLocalizations.of(
               context,
             )!.loadingProgressDialogTitle,
-            task: readFileWithIdentifier(recentFile.identifier),
+            task: readFileWithIdentifier(
+              recentFile.identifier,
+              parentDirIdentifier: recentFile.parentDirIdentifier,
+              rootDirIdentifier: recentFile.rootDirIdentifier,
+            ),
           ).then((value) => value.result),
         ),
       ),

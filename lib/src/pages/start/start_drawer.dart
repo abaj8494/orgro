@@ -29,6 +29,11 @@ class StartDrawer extends StatelessWidget {
         return remembered.sortOrder == SortOrder.ascending ? result : -result;
       });
 
+    debugPrint('StartDrawer: total files=${remembered.list.length}, starred=${starred.length}, recents=${recents.length}');
+    for (final f in remembered.list) {
+      debugPrint('  File: ${f.name}, starred=${f.isStarred}, starredIdx=${f.starredIdx}');
+    }
+
     return Drawer(
       child: SafeArea(
         child: Column(
@@ -177,7 +182,7 @@ class _DrawerFileListTile extends StatelessWidget {
 
     return Slidable(
       key: ValueKey(file.uri),
-      endActionPane: ActionPane(
+      startActionPane: ActionPane(
         motion: const ScrollMotion(),
         extentRatio: 0.4,
         children: [
@@ -220,7 +225,11 @@ class _DrawerFileListTile extends StatelessWidget {
           Navigator.pop(context);
           await loadAndRememberFile(
             context,
-            readFileWithIdentifier(file.identifier),
+            readFileWithIdentifier(
+              file.identifier,
+              parentDirIdentifier: file.parentDirIdentifier,
+              rootDirIdentifier: file.rootDirIdentifier,
+            ),
           );
         },
       ),
