@@ -1,104 +1,65 @@
-[<img src="https://orgro.org/assets/appstore.png" alt="Download on the App Store" height="60">](https://apps.apple.com/us/app/orgro/id1512580074?uo=4) [<img src="https://orgro.org/assets/playstore.png" alt="Get it on Google Play" height="60">](https://play.google.com/store/apps/details?id=com.madlonkay.orgro) [<img src="https://orgro.org/assets/fdroid.png" alt="Get it on F-Droid" height="60">](https://f-droid.org/packages/com.madlonkay.orgro/)
+# orgro fork
 
-# Orgro
+a heavily modified fork of [amake/orgro](https://github.com/amake/orgro) — the org mode viewer for ios and android.
 
-An [Org Mode](https://orgmode.org/) app for iOS and Android
+this fork diverges substantially from upstream. it's built around how i actually use org files: nested in folders, linked together with transclusions, and synced via git.
 
-https://github.com/amake/orgro/assets/2172537/a3d841a3-84f3-4c34-9381-c73ab4dc9249
+## what's changed
 
-# What is Org Mode?
+### folder-first navigation
 
-Imagine a plain-text markup language like Markdown, but married to an
-application that is a literate programming environment and life organizer. In
-[Emacs](https://www.gnu.org/software/emacs/).
+the start screen is now a proper folder explorer. no more hunting through a flat list of recent files — just navigate your directory tree directly.
 
-# Why?
+- configured folder becomes your home base
+- recent/starred files moved to a navigation drawer (hamburger menu)
+- breadcrumb navigation with home and up buttons
+- a-z/z-a sorting
+- back button walks up the folder hierarchy before exiting
 
-I started taking notes in Org Mode at work, then found myself wanting to view
-them on my tablet in meetings. By default on iOS you can't open an `.org` file
-at all, as the OS doesn't even know that it's plain text.
+### file search
 
-Other mobile Org Mode apps seem focused on specific use cases like to-dos or
-task management; Orgro is instead meant to be a well-rounded and high-fidelity
-experience for viewing, navigating, and editing Org documents. (In the 5+ years
-since I started Orgro, I've added additional functionality only when it fits
-well into the core without compromises.)
+fuzzy search across all `.org` files in your configured folder. searches recursively, highlights matched characters, and sorts results by relevance.
 
-I also wanted to try writing a parser with
-[PetitParser](https://github.com/petitparser/dart-petitparser); the result
-powers this application and is available as a separate library,
-[org_parser](https://github.com/amake/org_parser). Further, the display engine
-is also available as a separate package for any [Flutter](https://flutter.dev/)
-app that wants to display Org markup:
-[org_flutter](https://github.com/amake/org_flutter).
+### transclusion support
 
-# Features
+`#+transclude:` directives now work. point them at headings via id links or file paths and the content renders inline.
 
-## Display
-- Syntax highlighting for all Org Mode syntax structures
-- Expand and collapse sections, blocks, and drawers
-- Reflow text for easy viewing on narrow screens
-- “Reader mode” where extraneous markup is hidden
-- Pretty table rendering
-- Inline and block LaTeX rendering
+- supports `:only-contents` and `:no-first-heading` properties
+- tap the header to collapse/expand
+- long-press to jump to source
+- handles circular references
+- caches resolved content
 
-## Navigation
-- Visibility cycling
-- Narrowing
-- Functional external links, section links, and relative links to other Org
-  files (works well with [Org-roam](https://www.orgroam.com/))
-- Search: both plain text and regexp
-- [Sparse Tree](https://orgmode.org/manual/Sparse-Trees.html)-style filtering
-- Jump to/from footnotes
-- Jump to `<<link targets>>`, `<<<radio targets>>>`, and src block code
-  references like `(foo)`
+### reader drawer
 
-## Editing
-- Edit entire files or narrowed sections as plain text, with various insertion
-  helpers
-- Some “structured” editing available
-  - Tap to toggle checkboxes
-  - Slide sections to cycle TODO states
-  - Tap to edit timestamps via date/time picker
+swipe from the left edge (or tap the menu) whilst viewing a document to open the reader drawer. shows the current folder's contents and recent files — switch between documents without leaving the reader.
 
-## Task management
-- Functional checkboxes, with [statistics
-  cookies](https://orgmode.org/manual/Breaking-Down-Tasks.html)
-- Easy cycling of TODO states
-- Notifications for Org Agenda items, including recurring items
+### sibling navigation
 
-## External media
-- Display linked images
-- Attachment support
-- Display [Org Cite](https://orgmode.org/manual/Citations.html) citations
+double-swipe left/right to move between files in the same folder. single swipes still cycle todo states.
 
-## More
-- Capture text and links from other apps via the standard OS share UI, and also
-  [`org-protocol://`](https://orgmode.org/manual/Protocols.html) links
-- Decrypt/encrypt [Org Crypt](https://orgmode.org/manual/Org-Crypt.html)
-  sections (currently symmetric keys only)
-- Honor document-local `#+STARTUP:`, `#+TODO:`, `#+LANGUAGE:` directives, and
-  some local variables
+### git symlink support
 
-See the [manual](https://orgro.org/manual) for details.
+paths like `[[file:img/photo.jpg]]` now resolve properly when `img` is a git portable symlink (a text file containing the target path). useful if you sync org files via github on systems without native symlink support.
 
-# FAQ
+## building
 
-See [here](https://orgro.org/faq/)
+```bash
+# clone
+git clone https://github.com/abaj8494/orgro.git
+cd orgro
 
-# Get it
+# run
+make run
 
-Orgro is available on the
-[App Store](https://apps.apple.com/us/app/orgro/id1512580074?uo=4),
-[Google Play](https://play.google.com/store/apps/details?id=com.madlonkay.orgro),
-and [F-Droid](https://f-droid.org/packages/com.madlonkay.orgro/), or you can
-build and install from source:
+# test
+make test
+```
 
-1. Install [Flutter](https://flutter.dev/)
-2. Clone this repo
-3. Attach your device and do `flutter run` from the repo root
+## upstream
 
-# Support Orgro
+this fork tracks [amake/orgro](https://github.com/amake/orgro). the symlink fix has been submitted as a [pull request](https://github.com/amake/orgro/pull/188) — the rest of the changes are too opinionated for upstream.
 
-If you like this app, please show your support by buying a copy, or [sponsoring
-the author](https://github.com/sponsors/amake) ❤️
+## licence
+
+same as upstream — gpl-3.0.
