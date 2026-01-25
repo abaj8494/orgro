@@ -1,4 +1,5 @@
 import 'package:org_parser/org_parser.dart';
+import 'package:orgro/src/data_source.dart';
 import 'package:orgro/src/transclusion/transclusion_directive.dart';
 
 /// Cache for resolved transclusions to avoid repeated file loading.
@@ -22,7 +23,13 @@ class TransclusionCache {
   }
 
   /// Cache a result for a directive.
-  void put(TransclusionDirective directive, OrgTree content, String sourceId) {
+  void put(
+    TransclusionDirective directive,
+    OrgTree content,
+    String sourceId,
+    DataSource sourceDataSource,
+    String? targetSection,
+  ) {
     final key = _cacheKey(directive);
 
     // Evict oldest if at capacity
@@ -34,6 +41,8 @@ class TransclusionCache {
     _cache[key] = TransclusionCacheEntry(
       content: content,
       sourceId: sourceId,
+      sourceDataSource: sourceDataSource,
+      targetSection: targetSection,
       loadedAt: DateTime.now(),
     );
     _accessOrder.remove(key);
@@ -79,6 +88,8 @@ class TransclusionCacheEntry {
   TransclusionCacheEntry({
     required this.content,
     required this.sourceId,
+    required this.sourceDataSource,
+    this.targetSection,
     required this.loadedAt,
   });
 
@@ -87,6 +98,12 @@ class TransclusionCacheEntry {
 
   /// Identifier of the source file (for invalidation).
   final String sourceId;
+
+  /// DataSource for the source file (for navigation).
+  final DataSource sourceDataSource;
+
+  /// The target section if specified.
+  final String? targetSection;
 
   /// When this entry was loaded.
   final DateTime loadedAt;

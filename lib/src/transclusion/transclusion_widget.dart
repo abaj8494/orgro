@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:org_flutter/org_flutter.dart';
 import 'package:orgro/src/components/document_provider.dart';
+import 'package:orgro/src/navigation.dart';
 import 'package:orgro/src/transclusion/transclusion_directive.dart';
 import 'package:orgro/src/transclusion/transclusion_resolver.dart';
 
@@ -38,6 +39,7 @@ class OrgTransclusionWidget extends StatefulWidget {
 class _OrgTransclusionWidgetState extends State<OrgTransclusionWidget> {
   bool _isExpanded = true; // Default: expanded
   Future<TransclusionResult>? _resolveFuture;
+  TransclusionSuccess? _resolvedResult;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +80,7 @@ class _OrgTransclusionWidgetState extends State<OrgTransclusionWidget> {
 
     return InkWell(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
+      onLongPress: _navigateToSource,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
@@ -109,6 +112,19 @@ class _OrgTransclusionWidgetState extends State<OrgTransclusionWidget> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Navigate to the source file/section when long-pressing the header.
+  void _navigateToSource() {
+    final result = _resolvedResult;
+    if (result == null) return;
+
+    // Navigate to the source file, optionally to the target section
+    loadDocument(
+      context,
+      result.sourceDataSource,
+      target: result.targetSection,
     );
   }
 
@@ -155,11 +171,17 @@ class _OrgTransclusionWidgetState extends State<OrgTransclusionWidget> {
         }
 
         return switch (result) {
-          TransclusionSuccess() => _buildSuccess(context, result),
+          TransclusionSuccess() => _buildSuccessAndStore(context, result),
           TransclusionError() => _buildError(result.message),
         };
       },
     );
+  }
+
+  Widget _buildSuccessAndStore(BuildContext context, TransclusionSuccess result) {
+    // Store the result for navigation
+    _resolvedResult = result;
+    return _buildSuccess(context, result);
   }
 
   Widget _buildLoading() {

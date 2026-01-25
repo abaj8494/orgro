@@ -14,6 +14,8 @@ class TransclusionSuccess extends TransclusionResult {
     required this.content,
     required this.sourceId,
     required this.sourceName,
+    required this.sourceDataSource,
+    this.targetSection,
   });
 
   /// The resolved and transformed content.
@@ -24,6 +26,12 @@ class TransclusionSuccess extends TransclusionResult {
 
   /// Name of the source file (for display).
   final String sourceName;
+
+  /// DataSource for the source file (for navigation).
+  final DataSource sourceDataSource;
+
+  /// The target section name if specified (e.g., "* Week 5").
+  final String? targetSection;
 }
 
 /// Error resolving transclusion.
@@ -117,6 +125,8 @@ class TransclusionResolver {
         content: cached.content,
         sourceId: cached.sourceId,
         sourceName: _getSourceName(directive),
+        sourceDataSource: cached.sourceDataSource,
+        targetSection: cached.targetSection,
       );
     }
 
@@ -133,6 +143,7 @@ class TransclusionResolver {
 
       // Extract target section if search option specified
       OrgTree targetContent = parsed;
+      String? navigationTarget;
       final searchOption = directive.link.extra;
       debugPrint('Transclusion search option: "$searchOption"');
       debugPrint('Link: scheme=${directive.link.scheme}, body=${directive.link.body}, extra=${directive.link.extra}');
@@ -143,18 +154,22 @@ class TransclusionResolver {
           return TransclusionError.invalidTarget(searchOption);
         }
         targetContent = extracted;
+        // Get the actual navigation target from the matched section
+        navigationTarget = _getNavigationTarget(extracted);
       }
 
       // Apply property transformations
       targetContent = _applyProperties(targetContent, directive);
 
-      // Cache the result
-      cache.put(directive, targetContent, sourceId);
+      // Cache the result - use navigation target for proper section lookup
+      cache.put(directive, targetContent, sourceId, targetSource, navigationTarget);
 
       return TransclusionSuccess(
         content: targetContent,
         sourceId: sourceId,
         sourceName: targetSource.name,
+        sourceDataSource: targetSource,
+        targetSection: navigationTarget,
       );
     } catch (e) {
       debugPrint('Transclusion resolution error: $e');
@@ -352,6 +367,34 @@ class TransclusionResolver {
       return true;
     });
     return result;
+  }
+
+  /// Get a navigation target string for the given tree.
+  ///
+  /// This returns a target that can be used with `handleInitialTarget` to
+  /// navigate to this section. Prefers ID, then custom ID, then headline title.
+  String? _getNavigationTarget(OrgTree tree) {
+    if (tree is! OrgSection) return null;
+
+    // Prefer ID for most reliable navigation
+    final id = tree.ids.firstOrNull;
+    if (id != null) {
+      return 'id:$id';
+    }
+
+    // Fall back to custom ID
+    final customId = tree.customIds.firstOrNull;
+    if (customId != null) {
+      return '#$customId';
+    }
+
+    // Fall back to headline title
+    final title = tree.headline.rawTitle;
+    if (title != null && title.isNotEmpty) {
+      return '*$title';
+    }
+
+    return null;
   }
 
   /// Apply transclusion properties to transform the content.
