@@ -19,6 +19,9 @@ class FolderExplorerBody extends StatefulWidget {
   State<FolderExplorerBody> createState() => _FolderExplorerBodyState();
 }
 
+// Static sort state that persists across directory navigation
+bool _sortAscending = true;
+
 class _FolderExplorerBodyState extends State<FolderExplorerBody> {
   // Stack of directory identifiers for navigation (first is root)
   late List<String> _pathStack;
@@ -104,7 +107,11 @@ class _FolderExplorerBodyState extends State<FolderExplorerBody> {
 
   Future<void> _openFile(DirectoryEntry entry) async {
     try {
-      final dataSource = await readFileWithIdentifier(entry.identifier);
+      final dataSource = await readFileWithIdentifier(
+        entry.identifier,
+        parentDirIdentifier: _currentIdentifier,
+        rootDirIdentifier: widget.rootIdentifier,
+      );
       if (!mounted) return;
       await loadAndRememberFile(context, dataSource);
     } catch (e, s) {
@@ -117,18 +124,43 @@ class _FolderExplorerBodyState extends State<FolderExplorerBody> {
     }
   }
 
+  void _navigateToRoot() {
+    if (_pathStack.length > 1) {
+      setState(() {
+        _pathStack.removeRange(1, _pathStack.length);
+        _nameStack.removeRange(1, _nameStack.length);
+      });
+      _loadCurrentDirectory();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _BreadcrumbBar(
-          names: _nameStack,
-          onTap: _navigateToLevel,
-          canGoUp: _pathStack.length > 1,
-          onUpPressed: _navigateUp,
-        ),
-        Expanded(child: _buildBody(context)),
-      ],
+    // Handle back button: navigate up folder hierarchy before exiting
+    return PopScope(
+      canPop: _pathStack.length <= 1, // Can pop (exit) only when at root
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _pathStack.length > 1) {
+          // Back was pressed but we didn't pop - navigate up instead
+          _navigateUp();
+        }
+      },
+      child: Column(
+        children: [
+          _BreadcrumbBar(
+            names: _nameStack,
+            onTap: _navigateToLevel,
+            canGoUp: _pathStack.length > 1,
+            onUpPressed: _navigateUp,
+            onHomePressed: _navigateToRoot,
+            sortAscending: _sortAscending,
+            onSortChanged: (ascending) {
+              setState(() => _sortAscending = ascending);
+            },
+          ),
+          Expanded(child: _buildBody(context)),
+        ],
+      ),
     );
   }
 
@@ -207,12 +239,23 @@ class _FolderExplorerBodyState extends State<FolderExplorerBody> {
       );
     }
 
+    // Sort entries: directories first, then by name
+    final sortedEntries = List<DirectoryEntry>.from(entries);
+    sortedEntries.sort((a, b) {
+      // Directories always come first
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      // Then sort by name
+      final comparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      return _sortAscending ? comparison : -comparison;
+    });
+
     return RefreshIndicator(
       onRefresh: _loadCurrentDirectory,
       child: ListView.builder(
-        itemCount: entries.length,
+        itemCount: sortedEntries.length,
         itemBuilder: (context, index) {
-          final entry = entries[index];
+          final entry = sortedEntries[index];
           return _DirectoryEntryTile(
             entry: entry,
             onTap: () =>
@@ -230,12 +273,18 @@ class _BreadcrumbBar extends StatelessWidget {
     required this.onTap,
     required this.canGoUp,
     required this.onUpPressed,
+    required this.onHomePressed,
+    required this.sortAscending,
+    required this.onSortChanged,
   });
 
   final List<String> names;
   final void Function(int index) onTap;
   final bool canGoUp;
   final VoidCallback onUpPressed;
+  final VoidCallback onHomePressed;
+  final bool sortAscending;
+  final void Function(bool ascending) onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -252,12 +301,18 @@ class _BreadcrumbBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (canGoUp)
+          if (canGoUp) ...[
+            IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: onHomePressed,
+              tooltip: 'Go to root folder',
+            ),
             IconButton(
               icon: const Icon(Icons.arrow_upward),
               onPressed: onUpPressed,
               tooltip: 'Go up',
             ),
+          ],
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -297,6 +352,43 @@ class _BreadcrumbBar extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          PopupMenuButton<bool>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort',
+            onSelected: onSortChanged,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: true,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check,
+                      color: sortAscending
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.transparent,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Name (A-Z)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: false,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check,
+                      color: !sortAscending
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.transparent,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Name (Z-A)'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
