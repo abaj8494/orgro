@@ -26,10 +26,18 @@ import 'package:orgro/src/pages/document/images.dart';
 import 'package:orgro/src/pages/document/keyboard.dart';
 import 'package:orgro/src/pages/document/links.dart';
 import 'package:orgro/src/pages/document/narrow.dart';
+import 'package:orgro/src/pages/document/reader_drawer.dart';
 import 'package:orgro/src/pages/document/restoration.dart';
+import 'package:orgro/src/pages/document/sibling_swipe.dart';
 import 'package:orgro/src/pages/document/timestamps.dart';
+import 'package:orgro/src/transclusion/transclusion.dart';
+import 'package:orgro/src/native_directory.dart';
 import 'package:orgro/src/preferences.dart';
+import 'package:orgro/src/components/remembered_files.dart';
+import 'package:orgro/src/error.dart';
+import 'package:orgro/src/pages/pages.dart';
 import 'package:orgro/src/routes/document.dart';
+import 'package:orgro/src/routes/routes.dart';
 import 'package:orgro/src/serialization.dart';
 import 'package:orgro/src/statistics.dart';
 import 'package:orgro/src/util.dart';
@@ -109,6 +117,15 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
   // in landscape (731px)
   bool get _bigScreen => _screenWidth > 600;
 
+  // Sibling file navigation
+  List<DirectoryEntry>? _siblingFiles;
+  int _currentFileIndex = -1;
+  bool _isDrawerOpen = false;
+
+  bool get _canNavigatePrevious => _currentFileIndex > 0;
+  bool get _canNavigateNext =>
+      _siblingFiles != null && _currentFileIndex < _siblingFiles!.length - 1;
+
   @override
   void initState() {
     super.initState();
@@ -128,6 +145,7 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
       (value) => setState(() => canResolveRelativeLinks = value),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSiblingFiles();
       handleInitialTarget(widget.initialTarget);
       ensureOpenOnNarrow();
       if (widget.initialTarget == null) {
@@ -193,7 +211,7 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
       PrimaryScrollController(
         controller: PrimaryScrollController.of(context),
         child: ResponsiveSlidableAction(
-          label: AppLocalizations.of(context)!.sectionActionCycleTodo,
+          label: '', // Icon only for cleaner look
           icon: Icons.repeat,
           onPressed: () {
             final todoSettings = OrgSettings.of(context).settings.todoSettings;
@@ -257,6 +275,25 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
     final scopeKey = _dataSource.id;
     final scopedViewSettings = viewSettings.forScope(scopeKey);
     if (!searchMode || _biggishScreen) {
+      // Star toggle button
+      final rememberedFiles = RememberedFiles.of(context);
+      final currentFile = rememberedFiles.list
+          .where((f) => f.name == widget.title)
+          .firstOrNull;
+      final isStarred = currentFile?.isStarred ?? false;
+      yield IconButton(
+        tooltip: isStarred ? 'Unstar file' : 'Star file',
+        icon: Icon(isStarred ? Icons.star : Icons.star_border),
+        onPressed: currentFile != null
+            ? () {
+                if (isStarred) {
+                  rememberedFiles.unstar(currentFile);
+                } else {
+                  rememberedFiles.star(currentFile);
+                }
+              }
+            : null,
+      );
       yield IconButton(
         tooltip: AppLocalizations.of(context)!.tooltipCycleVisibility,
         icon: const Icon(Icons.repeat),
@@ -353,12 +390,48 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
               onRedo: _redo,
               searchDelegate: searchDelegate,
               child: Scaffold(
-                body: CustomScrollView(
-                  restorationId: 'document_scroll_view_${widget.layer}',
-                  slivers: [
-                    _buildAppBar(context, searchMode: searchMode),
-                    _buildDocument(context),
-                  ],
+                // Disable drawer edge drag - use custom left edge swipe
+                drawerEdgeDragWidth: 0,
+                onDrawerChanged: (isOpened) {
+                  setState(() => _isDrawerOpen = isOpened);
+                },
+                drawer: ReaderDrawer(
+                  dataSource: _dataSource,
+                  currentFileName: widget.title,
+                ),
+                body: Builder(
+                  builder: (scaffoldContext) => SiblingSwipeDetector(
+                    enabled: !_isDrawerOpen,
+                    canSwipeLeft: _canNavigateNext,
+                    canSwipeRight: _canNavigatePrevious,
+                    onSwipeLeft: () => _navigateToSibling(1),
+                    onSwipeRight: () => _navigateToSibling(-1),
+                    onOpenDrawer: () =>
+                        Scaffold.of(scaffoldContext).openDrawer(),
+                    onAtStart: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Already at first file'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    onAtEnd: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Already at last file'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    child: CustomScrollView(
+                      restorationId: 'document_scroll_view_${widget.layer}',
+                      slivers: [
+                        _buildAppBar(context, searchMode: searchMode),
+                        _buildDocument(context),
+                      ],
+                    ),
+                  ),
                 ),
                 // Builder is here to ensure that the Scaffold makes it into the
                 // body's context
@@ -385,6 +458,17 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
       // we supply it explicitly from parent context
       controller: PrimaryScrollController.of(context),
       child: SliverAppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: 'Menu',
+            // Ensure large touch target
+            iconSize: 24,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
+          ),
+        ),
         title: _title(searchMode),
         actions: _actions(searchMode).toList(growable: false),
         pinned: searchMode,
@@ -449,7 +533,7 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
               onTimestampTap: onTimestampTap,
               loadImage: loadImage,
               child: switch (doc) {
-                OrgDocument() => OrgDocumentWidget(doc, shrinkWrap: true),
+                OrgDocument() => TransclusionAwareDocumentWidget(doc, shrinkWrap: true),
                 OrgSection() => OrgSectionWidget(
                   doc,
                   root: true,
@@ -858,4 +942,266 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
       !_askPermissionToLoadRemoteImages &&
       !_askPermissionToSaveChanges &&
       !_askToDecrypt;
+
+  Future<void> _loadSiblingFiles() async {
+    final source = _dataSource;
+    debugPrint('_loadSiblingFiles: source type=${source.runtimeType}');
+    if (source is! NativeDataSource) {
+      debugPrint('_loadSiblingFiles: cannot load - not NativeDataSource');
+      return;
+    }
+
+    debugPrint('_loadSiblingFiles: parentDirIdentifier=${source.parentDirIdentifier}');
+    debugPrint('_loadSiblingFiles: rootDirIdentifier=${source.rootDirIdentifier}');
+
+    // Try to get parent directory - use stored value or try to derive it
+    String? parentDir = source.parentDirIdentifier;
+    String? rootDir = source.rootDirIdentifier;
+
+    // If no parent dir, try to get it from configured folder
+    if (parentDir == null) {
+      final prefs = Preferences.of(context, PrefsAspect.configuredFolder);
+      final configuredRoot = prefs.configuredFolderIdentifier;
+      debugPrint('_loadSiblingFiles: trying configured folder: $configuredRoot');
+
+      if (configuredRoot != null) {
+        // Try to find the file in the configured folder and determine its parent
+        parentDir = await _findParentDirectory(source.identifier, configuredRoot);
+        rootDir = configuredRoot;
+        debugPrint('_loadSiblingFiles: derived parentDir=$parentDir');
+      }
+    }
+
+    if (parentDir == null) {
+      debugPrint('_loadSiblingFiles: cannot load - no parent dir available');
+      return;
+    }
+
+    try {
+      final entries = await listDirectory(parentDir);
+      final orgFiles = entries.where((e) => e.isOrgFile).toList();
+      final currentIndex = orgFiles.indexWhere(
+        (e) => e.name == widget.title,
+      );
+      debugPrint('_loadSiblingFiles: found ${orgFiles.length} siblings, current index=$currentIndex');
+      if (mounted) {
+        setState(() {
+          _siblingFiles = orgFiles;
+          _currentFileIndex = currentIndex;
+          // Store the derived parent/root for sibling navigation
+          _derivedParentDir = parentDir;
+          _derivedRootDir = rootDir;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load sibling files: $e');
+    }
+  }
+
+  String? _derivedParentDir;
+  String? _derivedRootDir;
+
+  /// Try to find the parent directory of a file by searching the configured folder tree
+  Future<String?> _findParentDirectory(String fileIdentifier, String rootDir) async {
+    try {
+      // Search recursively to find the file and its parent
+      return await _searchForFileParent(fileIdentifier, rootDir, widget.title);
+    } catch (e) {
+      debugPrint('_findParentDirectory failed: $e');
+      return null;
+    }
+  }
+
+  Future<String?> _searchForFileParent(String fileIdentifier, String dirIdentifier, String fileName) async {
+    try {
+      final entries = await listDirectory(dirIdentifier);
+
+      // Check if the file is in this directory
+      for (final entry in entries) {
+        if (!entry.isDirectory && entry.name == fileName) {
+          // Found the file - this directory is the parent
+          return dirIdentifier;
+        }
+      }
+
+      // Search subdirectories
+      for (final entry in entries) {
+        if (entry.isDirectory) {
+          final result = await _searchForFileParent(fileIdentifier, entry.identifier, fileName);
+          if (result != null) {
+            return result;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('_searchForFileParent error in $dirIdentifier: $e');
+      return null;
+    }
+  }
+
+  Future<void> _navigateToSibling(int direction) async {
+    if (_siblingFiles == null) return;
+    final newIndex = _currentFileIndex + direction;
+    if (newIndex < 0 || newIndex >= _siblingFiles!.length) return;
+
+    final entry = _siblingFiles![newIndex];
+    final source = _dataSource;
+    // Use stored or derived parent/root directories
+    final parentId = (source is NativeDataSource ? source.parentDirIdentifier : null) ?? _derivedParentDir;
+    final rootId = (source is NativeDataSource ? source.rootDirIdentifier : null) ?? _derivedRootDir;
+
+    // Load the sibling file data
+    final dataSource = await readFileWithIdentifier(
+      entry.identifier,
+      parentDirIdentifier: parentId,
+      rootDirIdentifier: rootId,
+    );
+
+    if (!mounted) return;
+
+    // Remember the file
+    final rememberedFiles = RememberedFiles.of(context);
+    if (dataSource.persistable) {
+      final loadedFile = RememberedFile(
+        identifier: dataSource.identifier,
+        name: dataSource.name,
+        uri: dataSource.uri,
+        lastOpened: DateTime.now(),
+        parentDirIdentifier: dataSource.parentDirIdentifier,
+        rootDirIdentifier: dataSource.rootDirIdentifier,
+      );
+      rememberedFiles.add([loadedFile]);
+    }
+
+    // Use push (not pushReplacement) so back button returns to previous document
+    // direction > 0 means next (slide from right), direction < 0 means previous (slide from left)
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        settings: RouteSettings(
+          name: Routes.document,
+          arguments: DocumentRouteArgs(dataSource: dataSource),
+        ),
+        transitionDuration: const Duration(milliseconds: 200),
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return const _DocumentRouteTop();
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          // Slide from right for next (direction > 0), from left for previous (direction < 0)
+          final begin = Offset(direction > 0 ? 1.0 : -1.0, 0.0);
+          const end = Offset.zero;
+          final tween = Tween(begin: begin, end: end);
+          final offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+      ),
+    );
+  }
+}
+
+// Re-export _DocumentRouteTop for sibling navigation
+class _DocumentRouteTop extends StatefulWidget {
+  const _DocumentRouteTop();
+
+  @override
+  State<_DocumentRouteTop> createState() => _DocumentRouteTopState();
+}
+
+class _DocumentRouteTopState extends State<_DocumentRouteTop> {
+  bool _inited = false;
+  late DocumentRouteArgs _args;
+  late Future<ParsedOrgFileInfo?> _parsed;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_inited) {
+      setState(() {
+        _inited = true;
+        _args = ModalRoute.of(context)!.settings.arguments as DocumentRouteArgs;
+        _parsed = ParsedOrgFileInfo.from(_args.dataSource);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ParsedOrgFileInfo?>(
+      future: _parsed,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return DocumentProvider(
+            dataSource: snapshot.data!.dataSource,
+            doc: snapshot.data!.doc,
+            child: _DocumentPageWrapper(
+              layer: 0,
+              target: _args.target,
+              initialMode: _args.mode,
+              afterOpen: _args.afterOpen,
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return ErrorPage(error: snapshot.error.toString());
+        } else {
+          return const ProgressPage();
+        }
+      },
+    );
+  }
+}
+
+class _DocumentPageWrapper extends StatelessWidget {
+  const _DocumentPageWrapper({
+    required this.layer,
+    required this.target,
+    required this.afterOpen,
+    this.initialMode,
+  });
+
+  final int layer;
+  final String? target;
+  final InitialMode? initialMode;
+  final AfterOpenCallback? afterOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final docProvider = DocumentProvider.of(context);
+    final dataSource = docProvider.dataSource;
+    return RootRestorationScope(
+      restorationId: 'org_page_root:${dataSource.id}',
+      child: ViewSettings.defaults(
+        context,
+        child: Builder(
+          builder: (context) {
+            final viewSettings = ViewSettings.of(context);
+            return OrgController(
+              root: docProvider.doc,
+              settings: viewSettings.readerMode
+                  ? OrgSettings.hideMarkup
+                  : const OrgSettings(),
+              interpretEmbeddedSettings: true,
+              searchQuery: viewSettings.searchQuery.asPattern(),
+              sparseQuery: viewSettings.filterData.asSparseQuery(),
+              errorHandler: (e) => WidgetsBinding.instance.addPostFrameCallback(
+                (_) => showErrorSnackBar(context, OrgroError.from(e)),
+              ),
+              restorationId: 'org_page:${dataSource.id}',
+              child: OrgLocator(
+                child: DocumentPage(
+                  layer: layer,
+                  title: dataSource.name,
+                  initialTarget: target,
+                  initialMode: initialMode,
+                  afterOpen: afterOpen,
+                  root: true,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

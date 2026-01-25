@@ -9,6 +9,7 @@ import 'package:orgro/src/debug.dart';
 import 'package:orgro/src/encryption.dart';
 import 'package:orgro/src/file_picker.dart';
 import 'package:orgro/src/preferences.dart';
+import 'package:orgro/src/transclusion/transclusion_cache.dart';
 
 const _kMaxUndoStackSize = 10;
 
@@ -39,6 +40,7 @@ class _DocumentProviderState extends State<DocumentProvider> {
   late DataSource _dataSource;
   List<OrgroPassword> _passwords = [];
   int _cursor = 0;
+  final TransclusionCache _transclusionCache = TransclusionCache();
 
   @override
   void initState() {
@@ -145,6 +147,7 @@ class _DocumentProviderState extends State<DocumentProvider> {
       redo: _redo,
       canUndo: _canUndo,
       canRedo: _canRedo,
+      transclusionCache: _transclusionCache,
       child: widget.child,
     );
   }
@@ -162,6 +165,7 @@ class InheritedDocumentProvider extends InheritedWidget {
     required this.redo,
     required this.canUndo,
     required this.canRedo,
+    required this.transclusionCache,
     required super.child,
     super.key,
   });
@@ -176,6 +180,7 @@ class InheritedDocumentProvider extends InheritedWidget {
   final (OrgTree, DocumentAnalysis) Function() redo;
   final bool canUndo;
   final bool canRedo;
+  final TransclusionCache transclusionCache;
 
   @override
   bool updateShouldNotify(InheritedDocumentProvider oldWidget) =>
@@ -222,6 +227,16 @@ class DocumentAnalysis {
           !hasEncryptedContent;
     });
 
+    // Check for transclusion directives
+    var docHasTransclusions = false;
+    doc.visit<OrgMeta>((meta) {
+      if (meta.key.toLowerCase() == '#+transclude:') {
+        docHasTransclusions = true;
+        return false; // Stop visiting
+      }
+      return true;
+    });
+
     final keywords = <String>{};
     final tags = <String>{};
     final priorities = <String>{};
@@ -248,6 +263,7 @@ class DocumentAnalysis {
       hasEncryptedContent: hasEncryptedContent,
       needsEncryption: needsEncryption,
       hasAgendaEntries: hasAgendaEntries,
+      hasTransclusions: docHasTransclusions,
       keywords: keywords.toList(growable: false),
       tags: tags.toList(growable: false),
       priorities: priorities.toList(growable: false),
@@ -263,6 +279,7 @@ class DocumentAnalysis {
     this.hasEncryptedContent,
     this.needsEncryption,
     this.hasAgendaEntries,
+    this.hasTransclusions,
     this.keywords,
     this.tags,
     this.priorities,
@@ -274,6 +291,7 @@ class DocumentAnalysis {
   final bool? hasEncryptedContent;
   final bool? needsEncryption;
   final bool? hasAgendaEntries;
+  final bool? hasTransclusions;
   final List<String>? keywords;
   final List<String>? tags;
   final List<String>? priorities;
@@ -287,6 +305,7 @@ class DocumentAnalysis {
       hasEncryptedContent == other.hasEncryptedContent &&
       needsEncryption == other.needsEncryption &&
       hasAgendaEntries == other.hasAgendaEntries &&
+      hasTransclusions == other.hasTransclusions &&
       listEquals(keywords, other.keywords) &&
       listEquals(tags, other.tags) &&
       listEquals(priorities, other.priorities);
@@ -299,6 +318,7 @@ class DocumentAnalysis {
     hasEncryptedContent,
     needsEncryption,
     hasAgendaEntries,
+    hasTransclusions,
     keywords == null ? null : Object.hashAll(keywords!),
     tags == null ? null : Object.hashAll(tags!),
     priorities == null ? null : Object.hashAll(priorities!),
