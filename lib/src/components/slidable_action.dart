@@ -74,7 +74,7 @@ class _SmallIconLabel extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       spacing: 4,
-      children: [Icon(icon), Text(label)],
+      children: [Icon(icon), if (label.isNotEmpty) Text(label)],
     );
   }
 }
@@ -177,7 +177,7 @@ class _FloatingIconLabelState extends State<_FloatingIconLabel> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 spacing: 4,
-                children: [Icon(widget.icon), Text(widget.label)],
+                children: [Icon(widget.icon), if (widget.label.isNotEmpty) Text(widget.label)],
               ),
             ),
           ),
