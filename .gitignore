@@ -50,3 +50,4 @@ app.*.map.json
 /ios/build
 .aider*
 config.ini
+/coverage/
