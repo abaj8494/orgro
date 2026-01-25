@@ -60,3 +60,26 @@ Future<List<DirectoryEntry>> listDirectory(String dirIdentifier) async {
 
   return entries;
 }
+
+/// Recursively lists all .org files in a directory and its subdirectories.
+/// Returns only .org files (no directories).
+Future<List<DirectoryEntry>> listDirectoryRecursive(String dirIdentifier) async {
+  final result = await _channel.invokeMethod<List<dynamic>>(
+    'listDirectoryRecursive',
+    {'dirIdentifier': dirIdentifier},
+  );
+
+  if (result == null) {
+    return [];
+  }
+
+  final entries = result
+      .cast<Map<dynamic, dynamic>>()
+      .map((e) => DirectoryEntry.fromMap(e.cast<String, dynamic>()))
+      .toList();
+
+  // Sort alphabetically by name
+  entries.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  return entries;
+}

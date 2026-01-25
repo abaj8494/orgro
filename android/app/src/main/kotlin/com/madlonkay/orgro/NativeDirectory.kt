@@ -30,6 +30,18 @@ suspend fun handleNativeDirectoryMethod(
                 }
                 result.success(listDirectory(dirIdentifier, context))
             }
+            "listDirectoryRecursive" -> {
+                val dirIdentifier = call.argument<String>("dirIdentifier")
+                if (dirIdentifier == null) {
+                    result.error(
+                        "MissingArg",
+                        "Required argument missing",
+                        "${call.method} requires 'dirIdentifier'"
+                    )
+                    return@withContext
+                }
+                result.success(listDirectoryRecursive(dirIdentifier, context))
+            }
             else -> result.error("UnsupportedMethod", "${call.method} is not supported", null)
         }
     } catch (e: Exception) {
@@ -102,5 +114,78 @@ suspend fun listDirectory(
     }
 
     Log.d(TAG, "Found ${entries.size} entries")
+    entries
+}
+
+/**
+ * Recursively list all .org files in a directory and its subdirectories.
+ *
+ * @param dirIdentifier URI string identifying the root directory (SAF tree URI)
+ * @param context Android context
+ * @return List of maps containing file info for all .org files
+ */
+suspend fun listDirectoryRecursive(
+    dirIdentifier: String,
+    context: Context
+): List<Map<String, Any>> = withContext(Dispatchers.IO) {
+    val entries = mutableListOf<Map<String, Any>>()
+    val dirUri = Uri.parse(dirIdentifier)
+
+    // BFS traversal of directory tree
+    val parents = mutableListOf(dirUri)
+
+    while (parents.isNotEmpty()) {
+        val parent = parents.removeAt(0)
+
+        val parentDocumentId = when {
+            DocumentsContract.isDocumentUri(context, parent) ->
+                DocumentsContract.getDocumentId(parent)
+            else ->
+                DocumentsContract.getTreeDocumentId(parent)
+        }
+
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(parent, parentDocumentId)
+
+        context.contentResolver.query(
+            childrenUri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+            ),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nameColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val mimeColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+
+            while (cursor.moveToNext()) {
+                val documentId = cursor.getString(idColumn)
+                val name = cursor.getString(nameColumn)
+                val mime = cursor.getString(mimeColumn)
+                val isDirectory = DocumentsContract.Document.MIME_TYPE_DIR == mime
+                val uri = DocumentsContract.buildDocumentUriUsingTree(parent, documentId)
+
+                if (isDirectory) {
+                    // Add directory to queue for further traversal
+                    parents.add(uri)
+                } else if (name.lowercase().endsWith(".org")) {
+                    // Add .org file to results
+                    entries.add(
+                        mapOf(
+                            "name" to name,
+                            "identifier" to uri.toString(),
+                            "uri" to uri.toString(),
+                            "isDirectory" to false
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    Log.d(TAG, "Found ${entries.size} .org files recursively")
     entries
 }

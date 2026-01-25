@@ -12,7 +12,9 @@ import 'package:orgro/src/debug.dart';
 import 'package:orgro/src/entitlements.dart';
 import 'package:orgro/src/file_picker.dart';
 import 'package:orgro/src/fonts.dart';
+import 'package:orgro/src/native_directory.dart';
 import 'package:orgro/src/pages/pages.dart';
+import 'package:orgro/src/pages/start/file_search.dart';
 import 'package:orgro/src/pages/start/folder_explorer.dart';
 import 'package:orgro/src/pages/start/start_drawer.dart';
 import 'package:orgro/src/pages/start/util.dart';
@@ -119,24 +121,15 @@ class StartPageState extends State<StartPage> with PlatformOpenHandler {
           ),
         FloatingActionButton(
           tooltip: hasConfiguredFolder
-              ? AppLocalizations.of(context)!.tooltipOpenFile
+              ? AppLocalizations.of(context)!.tooltipSearchFiles
               : AppLocalizations.of(context)!.tooltipConfigureFolder,
           onPressed: hasConfiguredFolder
-              ? () => loadAndRememberFile(
-                    context,
-                    progressTask(
-                      context,
-                      dialogTitle: AppLocalizations.of(
-                        context,
-                      )!.preparingProgressDialogTitle,
-                      task: pickFile(),
-                    ).then((value) => value.result),
-                  )
+              ? () => _searchFiles(context)
               : () => _configureFolder(context),
-          heroTag: 'OpenFolderFAB',
+          heroTag: 'SearchFAB',
           foregroundColor: Theme.of(context).colorScheme.onSecondary,
           child: Icon(
-            hasConfiguredFolder ? Icons.folder_open : Icons.create_new_folder,
+            hasConfiguredFolder ? Icons.search : Icons.create_new_folder,
           ),
         ),
       ],
@@ -150,6 +143,30 @@ class StartPageState extends State<StartPage> with PlatformOpenHandler {
       context,
       PrefsAspect.configuredFolder,
     ).setConfiguredFolder(dirInfo);
+  }
+
+  Future<void> _searchFiles(BuildContext context) async {
+    final prefs = Preferences.of(context, PrefsAspect.configuredFolder);
+    final rootIdentifier = prefs.configuredFolderIdentifier;
+    if (rootIdentifier == null) return;
+
+    final result = await showSearch<DirectoryEntry?>(
+      context: context,
+      delegate: FileSearchDelegate(rootIdentifier: rootIdentifier),
+    );
+
+    if (result != null && context.mounted) {
+      // For search results, we know the root but not the exact parent folder
+      // The parent will be resolved later if needed
+      await loadAndRememberFile(
+        context,
+        readFileWithIdentifier(
+          result.identifier,
+          rootDirIdentifier: rootIdentifier,
+          // parentDirIdentifier is unknown for search results
+        ),
+      );
+    }
   }
 
   bool _inited = false;
