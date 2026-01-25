@@ -191,6 +191,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tooltipOpenFile => 'Open file';
 
   @override
+  String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
   String get buttonSupport => 'Поддержка · Обратная связь';
 
   @override
@@ -199,7 +202,31 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get sectionHeaderPinnedFiles => 'Прикреплённые файлы';
+  String get buttonChooseFolder => 'Choose Folder';
+
+  @override
+  String get setupPromptTitle => 'Welcome to Orgro';
+
+  @override
+  String get setupPromptBody => 'Choose a folder to browse your Org files';
+
+  @override
+  String get folderExplorerEmptyFolder => 'This folder is empty';
+
+  @override
+  String get folderExplorerNoOrgFiles => 'No .org files in this folder';
+
+  @override
+  String get folderExplorerLoading => 'Loading...';
+
+  @override
+  String get folderExplorerError => 'Error loading folder';
+
+  @override
+  String get menuItemConfigureFolder => 'Change folder';
+
+  @override
+  String get sectionHeaderStarredFiles => 'Starred';
 
   @override
   String get sectionHeaderRecentFiles => 'Последние файлы';

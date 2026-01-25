@@ -189,6 +189,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tooltipOpenFile => 'Open file';
 
   @override
+  String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
   String get buttonSupport => 'Support · Feedback';
 
   @override
@@ -197,10 +200,34 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sectionHeaderPinnedFiles => 'Pinned files';
+  String get buttonChooseFolder => 'Choose Folder';
 
   @override
-  String get sectionHeaderRecentFiles => 'Recent files';
+  String get setupPromptTitle => 'Welcome to Orgro';
+
+  @override
+  String get setupPromptBody => 'Choose a folder to browse your Org files';
+
+  @override
+  String get folderExplorerEmptyFolder => 'This folder is empty';
+
+  @override
+  String get folderExplorerNoOrgFiles => 'No .org files in this folder';
+
+  @override
+  String get folderExplorerLoading => 'Loading...';
+
+  @override
+  String get folderExplorerError => 'Error loading folder';
+
+  @override
+  String get menuItemConfigureFolder => 'Change folder';
+
+  @override
+  String get sectionHeaderStarredFiles => 'Starred';
+
+  @override
+  String get sectionHeaderRecentFiles => 'Recent';
 
   @override
   String get recentFilesSortDialogTitle => 'Sort by';
@@ -941,9 +968,6 @@ class AppLocalizationsEnGb extends AppLocalizationsEn {
   }
 
   @override
-  String get sectionHeaderPinnedFiles => 'Pinned files';
-
-  @override
   String get sectionHeaderRecentFiles => 'Recent files';
 
   @override
@@ -1677,6 +1701,9 @@ class AppLocalizationsEnUs extends AppLocalizationsEn {
   String get tooltipOpenFile => 'Open file';
 
   @override
+  String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
   String get buttonSupport => 'Support · Feedback';
 
   @override
@@ -1685,10 +1712,34 @@ class AppLocalizationsEnUs extends AppLocalizationsEn {
   }
 
   @override
-  String get sectionHeaderPinnedFiles => 'Pinned files';
+  String get buttonChooseFolder => 'Choose Folder';
 
   @override
-  String get sectionHeaderRecentFiles => 'Recent files';
+  String get setupPromptTitle => 'Welcome to Orgro';
+
+  @override
+  String get setupPromptBody => 'Choose a folder to browse your Org files';
+
+  @override
+  String get folderExplorerEmptyFolder => 'This folder is empty';
+
+  @override
+  String get folderExplorerNoOrgFiles => 'No .org files in this folder';
+
+  @override
+  String get folderExplorerLoading => 'Loading...';
+
+  @override
+  String get folderExplorerError => 'Error loading folder';
+
+  @override
+  String get menuItemConfigureFolder => 'Change folder';
+
+  @override
+  String get sectionHeaderStarredFiles => 'Starred';
+
+  @override
+  String get sectionHeaderRecentFiles => 'Recent';
 
   @override
   String get recentFilesSortDialogTitle => 'Sort by';

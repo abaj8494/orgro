@@ -16,15 +16,15 @@ class RememberedFilesBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remembered = RememberedFiles.of(context);
-    final sortedPins = remembered.pinned;
+    final sortedStarred = remembered.starred;
     final sortedRecents = remembered.recents
       ..sort((a, b) {
         final result = switch (remembered.sortKey) {
           RecentFilesSortKey.lastOpened => a.lastOpened.compareTo(b.lastOpened),
           RecentFilesSortKey.name => a.name.compareTo(b.name),
           RecentFilesSortKey.location =>
-            (_appName(context, a.uri) ?? a.uri).compareTo(
-              _appName(context, b.uri) ?? b.uri,
+            (appName(context, a.uri) ?? a.uri).compareTo(
+              appName(context, b.uri) ?? b.uri,
             ),
         };
         return remembered.sortOrder == SortOrder.ascending ? result : -result;
@@ -33,32 +33,32 @@ class RememberedFilesBody extends StatelessWidget {
     // list can be scrolled even by the edges of the view.
     return ListView(
       children: [
-        if (sortedPins.isNotEmpty) ...[
+        if (sortedStarred.isNotEmpty) ...[
           _constrain(
             ListHeader(
               title: Text(
-                AppLocalizations.of(context)!.sectionHeaderPinnedFiles,
+                AppLocalizations.of(context)!.sectionHeaderStarredFiles,
               ),
             ),
           ),
           ReorderableListView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: sortedPins.length,
+            itemCount: sortedStarred.length,
             shrinkWrap: true,
             itemBuilder: (context, index) {
-              final pinnedFile = sortedPins[index];
+              final starredFile = sortedStarred[index];
               return _constrain(
-                _RememberedFileManagementListTile(pinnedFile),
-                key: ValueKey(pinnedFile),
+                _RememberedFileManagementListTile(starredFile),
+                key: ValueKey(starredFile),
               );
             },
             onReorder: (oldIndex, newIndex) {
-              final pins = [...sortedPins];
-              final moved = pins.removeAt(oldIndex);
+              final starred = [...sortedStarred];
+              final moved = starred.removeAt(oldIndex);
               final insertAt = newIndex > oldIndex ? newIndex - 1 : newIndex;
-              pins.insert(insertAt, moved);
-              final reindexed = pins.indexed
-                  .map2((i, file) => file.copyWith(pinnedIdx: i))
+              starred.insert(insertAt, moved);
+              final reindexed = starred.indexed
+                  .map2((i, file) => file.copyWith(starredIdx: i))
                   .toList(growable: false);
               RememberedFiles.of(context).add(reindexed);
             },
@@ -110,17 +110,7 @@ class _RecentFilesListSortControl extends StatelessWidget {
     final iconSize = 16.0;
     final iconColor = Theme.of(context).hintColor;
     return TextButton(
-      onPressed: () async {
-        final result = await showDialog<(RecentFilesSortKey, SortOrder)>(
-          context: context,
-          builder: (context) =>
-              RecentFilesSortDialog(sortKey: sortKey, sortOrder: sortOrder),
-        );
-        if (result case (final key, final newOrder)) {
-          await prefs.setRecentFilesSortKey(key);
-          await prefs.setRecentFilesSortOrder(newOrder);
-        }
-      },
+      onPressed: () => showRecentFilesSortDialog(context),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -147,12 +137,27 @@ class _RecentFilesListSortControl extends StatelessWidget {
   }
 }
 
+Future<void> showRecentFilesSortDialog(BuildContext context) async {
+  final prefs = Preferences.of(context, PrefsAspect.recentFiles);
+  final sortKey = prefs.recentFilesSortKey;
+  final sortOrder = prefs.recentFilesSortOrder;
+  final result = await showDialog<(RecentFilesSortKey, SortOrder)>(
+    context: context,
+    builder: (context) =>
+        RecentFilesSortDialog(sortKey: sortKey, sortOrder: sortOrder),
+  );
+  if (result case (final key, final newOrder)) {
+    await prefs.setRecentFilesSortKey(key);
+    await prefs.setRecentFilesSortOrder(newOrder);
+  }
+}
+
 // Do not make format object a constant because it will break dynamic UI
 // language switching
 String _formatLastOpenedDate(DateTime date, String locale) =>
     DateFormat.yMd(locale).add_jm().format(date);
 
-String? _appName(BuildContext context, String uriString) {
+String? appName(BuildContext context, String uriString) {
   final uri = Uri.tryParse(uriString);
   if (uri == null) return null;
   // On Android we can reliably get the package name from the URI. On iOS,
@@ -204,14 +209,14 @@ class _RememberedFileManagementListTile extends StatelessWidget {
         motion: const ScrollMotion(),
         children: [
           SlidableAction(
-            backgroundColor: recentFile.isPinned ? Colors.grey : Colors.blue,
+            backgroundColor: recentFile.isStarred ? Colors.grey : Colors.amber,
             foregroundColor: Theme.of(context).colorScheme.onSecondary,
-            icon: Icons.push_pin,
+            icon: recentFile.isStarred ? Icons.star_border : Icons.star,
             onPressed: (context) {
-              if (recentFile.isPinned) {
-                RememberedFiles.of(context).unpin(recentFile);
+              if (recentFile.isStarred) {
+                RememberedFiles.of(context).unstar(recentFile);
               } else {
-                RememberedFiles.of(context).pin(recentFile);
+                RememberedFiles.of(context).star(recentFile);
               }
             },
           ),
@@ -279,8 +284,8 @@ class RememberedFileListTile extends StatelessWidget {
             ),
           ],
           ...(() sync* {
-            final appName = _appName(context, rememberedFile.uri);
-            if (appName != null) {
+            final fileAppName = appName(context, rememberedFile.uri);
+            if (fileAppName != null) {
               if (showAccessTime == true) {
                 yield const SizedBox(width: 8);
               }
@@ -292,7 +297,7 @@ class RememberedFileListTile extends StatelessWidget {
               yield const SizedBox(width: 2);
               yield Expanded(
                 child: Text(
-                  appName,
+                  fileAppName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

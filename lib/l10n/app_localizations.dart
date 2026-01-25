@@ -424,6 +424,12 @@ abstract class AppLocalizations {
   /// **'Open file'**
   String get tooltipOpenFile;
 
+  /// No description provided for @tooltipConfigureFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure folder'**
+  String get tooltipConfigureFolder;
+
   /// No description provided for @buttonSupport.
   ///
   /// In en, this message translates to:
@@ -436,16 +442,64 @@ abstract class AppLocalizations {
   /// **'v{version}'**
   String buttonVersion(String version);
 
-  /// No description provided for @sectionHeaderPinnedFiles.
+  /// No description provided for @buttonChooseFolder.
   ///
   /// In en, this message translates to:
-  /// **'Pinned files'**
-  String get sectionHeaderPinnedFiles;
+  /// **'Choose Folder'**
+  String get buttonChooseFolder;
+
+  /// No description provided for @setupPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Orgro'**
+  String get setupPromptTitle;
+
+  /// No description provided for @setupPromptBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder to browse your Org files'**
+  String get setupPromptBody;
+
+  /// No description provided for @folderExplorerEmptyFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is empty'**
+  String get folderExplorerEmptyFolder;
+
+  /// No description provided for @folderExplorerNoOrgFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'No .org files in this folder'**
+  String get folderExplorerNoOrgFiles;
+
+  /// No description provided for @folderExplorerLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get folderExplorerLoading;
+
+  /// No description provided for @folderExplorerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading folder'**
+  String get folderExplorerError;
+
+  /// No description provided for @menuItemConfigureFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Change folder'**
+  String get menuItemConfigureFolder;
+
+  /// No description provided for @sectionHeaderStarredFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Starred'**
+  String get sectionHeaderStarredFiles;
 
   /// No description provided for @sectionHeaderRecentFiles.
   ///
   /// In en, this message translates to:
-  /// **'Recent files'**
+  /// **'Recent'**
   String get sectionHeaderRecentFiles;
 
   /// No description provided for @recentFilesSortDialogTitle.

@@ -60,7 +60,7 @@ class _QuickActionsState extends State<QuickActions> {
         );
         break;
       case QuickAction.topPin:
-        final pin = RememberedFiles.of(context).pinned.firstOrNull;
+        final pin = RememberedFiles.of(context).starred.firstOrNull;
         if (pin != null) {
           await loadAndRememberFile(
             context,
@@ -74,7 +74,7 @@ class _QuickActionsState extends State<QuickActions> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final pin = RememberedFiles.of(context).pinned.firstOrNull;
+    final pin = RememberedFiles.of(context).starred.firstOrNull;
     _quickActions.setShortcutItems(<qa.ShortcutItem>[
       qa.ShortcutItem(
         type: QuickAction.newDocument.name,

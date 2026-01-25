@@ -8,6 +8,7 @@ import 'package:orgro/src/agenda.dart';
 import 'package:orgro/src/components/dialogs.dart';
 import 'package:orgro/src/components/remembered_files.dart';
 import 'package:orgro/src/components/view_settings.dart';
+import 'package:orgro/src/data_source.dart';
 import 'package:orgro/src/debug.dart';
 import 'package:orgro/src/error.dart';
 import 'package:orgro/src/file_picker.dart';
@@ -49,7 +50,7 @@ const kDefaultRecentFilesSortKey = RecentFilesSortKey.lastOpened;
 const kDefaultRecentFilesSortOrder = SortOrder.descending;
 const kDefaultAgendaNotificationsPolicy = AgendaNotificationsPolicy.ask;
 
-const kMaxRecentFiles = 10;
+// Note: kMaxRecentFiles limit removed - recent files list is now unlimited
 
 const kFontFamilyKey = 'font_family';
 const kTextScaleKey = 'text_scale';
@@ -70,6 +71,9 @@ const kRecentFilesSortKey = 'recent_files_sort_key';
 const kRecentFilesSortOrder = 'recent_files_sort_order';
 const kAgendaFileJsonsKey = 'agenda_file_jsons';
 const kAgendaNotificationsPolicyKey = 'agenda_notifications_policy';
+const kConfiguredFolderIdentifierKey = 'configured_folder_identifier';
+const kConfiguredFolderUriKey = 'configured_folder_uri';
+const kConfiguredFolderNameKey = 'configured_folder_name';
 
 const _kMigrationCompletedKey = 'migration_completed_key';
 
@@ -169,6 +173,7 @@ enum PrefsAspect {
   accessibleDirs,
   customFilterQueries,
   customization,
+  configuredFolder,
   // For uses where a value is written but not read
   nil,
 }
@@ -207,7 +212,8 @@ abstract class InheritedPreferences extends InheritedModel<PrefsAspect> {
         oldWidget,
         dependencies,
       ) ||
-      _updateShouldNotifyDependentCustomization(oldWidget, dependencies);
+      _updateShouldNotifyDependentCustomization(oldWidget, dependencies) ||
+      _updateShouldNotifyDependentConfiguredFolder(oldWidget, dependencies);
 }
 
 class _MockPreferences extends InheritedPreferences {
@@ -331,7 +337,7 @@ extension RecentFilesExt on InheritedPreferences {
 
   Future<void> addRecentFiles(List<RememberedFile> files) async {
     final sortedFiles = [...files, ...rememberedFiles]
-      ..sort((a, b) => -a.isPinned.compareTo(b.isPinned));
+      ..sort((a, b) => -a.isStarred.compareTo(b.isStarred));
     final uniqueFiles = sortedFiles
         .unique(
           cache: LinkedHashSet(
@@ -340,11 +346,8 @@ extension RecentFilesExt on InheritedPreferences {
           ),
         )
         .toList(growable: false);
-    final retained = [
-      ...uniqueFiles.where((f) => f.isPinned),
-      ...uniqueFiles.where((f) => f.isNotPinned).take(kMaxRecentFiles),
-    ];
-    return await _setRecentFiles(retained);
+    // No limit on recent files - keep all unique files
+    return await _setRecentFiles(uniqueFiles);
   }
 
   Future<void> removeRecentFile(RememberedFile file) async {
@@ -352,25 +355,25 @@ extension RecentFilesExt on InheritedPreferences {
     return await _setRecentFiles(files);
   }
 
-  Future<void> pinFile(RememberedFile file) async {
-    final pinnedIdx = rememberedFiles.where((f) => f.isPinned).length;
+  Future<void> starFile(RememberedFile file) async {
+    final starredIdx = rememberedFiles.where((f) => f.isStarred).length;
     final files =
         rememberedFiles
             .map(
               (f) =>
-                  f.uri == file.uri ? file.copyWith(pinnedIdx: pinnedIdx) : f,
+                  f.uri == file.uri ? file.copyWith(starredIdx: starredIdx) : f,
             )
             .toList(growable: false)
-          ..sort((a, b) => -a.isPinned.compareTo(b.isPinned));
+          ..sort((a, b) => -a.isStarred.compareTo(b.isStarred));
     return await _setRecentFiles(files);
   }
 
-  Future<void> unpinFile(RememberedFile file) async {
+  Future<void> unstarFile(RememberedFile file) async {
     final files =
         rememberedFiles
-            .map((f) => f.uri == file.uri ? file.copyWith(pinnedIdx: -1) : f)
+            .map((f) => f.uri == file.uri ? file.copyWith(starredIdx: -1) : f)
             .toList(growable: false)
-          ..sort((a, b) => -a.isPinned.compareTo(b.isPinned));
+          ..sort((a, b) => -a.isStarred.compareTo(b.isStarred));
     return await _setRecentFiles(files);
   }
 
@@ -608,6 +611,44 @@ extension CustomizationExt on InheritedPreferences {
       data.developerMode != oldWidget.data.developerMode;
 }
 
+extension ConfiguredFolderExt on InheritedPreferences {
+  String? get configuredFolderIdentifier => data.configuredFolderIdentifier;
+  String? get configuredFolderUri => data.configuredFolderUri;
+  String? get configuredFolderName => data.configuredFolderName;
+
+  bool get hasConfiguredFolder => configuredFolderIdentifier != null;
+
+  Future<void> setConfiguredFolder(NativeDirectoryInfo? folder) async {
+    if (folder == null) {
+      _update((data) => data.copyWith(clearConfiguredFolder: true));
+      await _setOrRemove<String>(kConfiguredFolderIdentifierKey, null);
+      await _setOrRemove<String>(kConfiguredFolderUriKey, null);
+      await _setOrRemove<String>(kConfiguredFolderNameKey, null);
+    } else {
+      _update(
+        (data) => data.copyWith(
+          configuredFolderIdentifier: folder.identifier,
+          configuredFolderUri: folder.uri,
+          configuredFolderName: folder.name,
+        ),
+      );
+      await _setOrRemove(kConfiguredFolderIdentifierKey, folder.identifier);
+      await _setOrRemove(kConfiguredFolderUriKey, folder.uri);
+      await _setOrRemove(kConfiguredFolderNameKey, folder.name);
+    }
+  }
+
+  bool _updateShouldNotifyDependentConfiguredFolder(
+    InheritedPreferences oldWidget,
+    Set<PrefsAspect> dependencies,
+  ) =>
+      dependencies.contains(PrefsAspect.configuredFolder) &&
+      (data.configuredFolderIdentifier !=
+              oldWidget.data.configuredFolderIdentifier ||
+          data.configuredFolderUri != oldWidget.data.configuredFolderUri ||
+          data.configuredFolderName != oldWidget.data.configuredFolderName);
+}
+
 class PreferencesData {
   const PreferencesData.defaults()
     : textScale = kDefaultTextScale,
@@ -629,7 +670,10 @@ class PreferencesData {
       wakelock = kDefaultWakelock,
       scopedPreferences = const {},
       textPreviewString = kDefaultTextPreviewString,
-      developerMode = kDefaultDeveloperMode;
+      developerMode = kDefaultDeveloperMode,
+      configuredFolderIdentifier = null,
+      configuredFolderUri = null,
+      configuredFolderName = null;
 
   static Future<PreferencesData> fromSharedPreferences(
     SharedPreferencesAsync prefs,
@@ -681,6 +725,11 @@ class PreferencesData {
       wakelock: await prefs.getBool(kWakelockKey),
       textPreviewString: await prefs.getString(kTextPreviewStringKey),
       scopedPreferences: scopedPreferences,
+      configuredFolderIdentifier: await prefs.getString(
+        kConfiguredFolderIdentifierKey,
+      ),
+      configuredFolderUri: await prefs.getString(kConfiguredFolderUriKey),
+      configuredFolderName: await prefs.getString(kConfiguredFolderNameKey),
     );
   }
 
@@ -705,6 +754,9 @@ class PreferencesData {
     required this.scopedPreferences,
     required this.textPreviewString,
     required this.developerMode,
+    required this.configuredFolderIdentifier,
+    required this.configuredFolderUri,
+    required this.configuredFolderName,
   });
 
   final double textScale;
@@ -727,6 +779,9 @@ class PreferencesData {
   final Map<String, dynamic> scopedPreferences;
   final String textPreviewString;
   final bool developerMode;
+  final String? configuredFolderIdentifier;
+  final String? configuredFolderUri;
+  final String? configuredFolderName;
 
   PreferencesData copyWith({
     double? textScale,
@@ -749,6 +804,10 @@ class PreferencesData {
     Map<String, dynamic>? scopedPreferences,
     String? textPreviewString,
     bool? developerMode,
+    String? configuredFolderIdentifier,
+    String? configuredFolderUri,
+    String? configuredFolderName,
+    bool clearConfiguredFolder = false,
   }) => PreferencesData(
     textScale: textScale ?? this.textScale,
     fontFamily: fontFamily ?? this.fontFamily,
@@ -771,6 +830,15 @@ class PreferencesData {
     scopedPreferences: scopedPreferences ?? this.scopedPreferences,
     textPreviewString: textPreviewString ?? this.textPreviewString,
     developerMode: developerMode ?? this.developerMode,
+    configuredFolderIdentifier: clearConfiguredFolder
+        ? null
+        : (configuredFolderIdentifier ?? this.configuredFolderIdentifier),
+    configuredFolderUri: clearConfiguredFolder
+        ? null
+        : (configuredFolderUri ?? this.configuredFolderUri),
+    configuredFolderName: clearConfiguredFolder
+        ? null
+        : (configuredFolderName ?? this.configuredFolderName),
   );
 
   @override
@@ -802,7 +870,10 @@ class PreferencesData {
             mapEquals(a as Map<String, dynamic>?, b as Map<String, dynamic>?),
       ) &&
       textPreviewString == other.textPreviewString &&
-      developerMode == other.developerMode;
+      developerMode == other.developerMode &&
+      configuredFolderIdentifier == other.configuredFolderIdentifier &&
+      configuredFolderUri == other.configuredFolderUri &&
+      configuredFolderName == other.configuredFolderName;
 
   @override
   int get hashCode => Object.hash(
@@ -825,8 +896,13 @@ class PreferencesData {
     wakelock,
     Object.hashAll(scopedPreferences.keys),
     Object.hashAll(scopedPreferences.values),
-
-    Object.hash(textPreviewString, developerMode),
+    Object.hash(
+      textPreviewString,
+      developerMode,
+      configuredFolderIdentifier,
+      configuredFolderUri,
+      configuredFolderName,
+    ),
   );
 }
 

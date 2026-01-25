@@ -19,6 +19,12 @@ class MainActivity : FlutterActivity(), CoroutineScope by MainScope() {
                 handleNativeSearchMethod(call, result, applicationContext)
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.madlonkay.orgro/native_directory").setMethodCallHandler {
+            call, result ->
+            launch {
+                handleNativeDirectoryMethod(call, result, applicationContext)
+            }
+        }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

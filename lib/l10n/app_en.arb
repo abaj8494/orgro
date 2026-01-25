@@ -81,6 +81,7 @@
 
   "tooltipCreateFile": "Create file",
   "tooltipOpenFile": "Open file",
+  "tooltipConfigureFolder": "Configure folder",
 
   "buttonSupport": "Support · Feedback",
   "buttonVersion": "v{version}",
@@ -91,9 +92,20 @@
       }
     }
   },
+  "buttonChooseFolder": "Choose Folder",
 
-  "sectionHeaderPinnedFiles": "Pinned files",
-  "sectionHeaderRecentFiles": "Recent files",
+  "setupPromptTitle": "Welcome to Orgro",
+  "setupPromptBody": "Choose a folder to browse your Org files",
+
+  "folderExplorerEmptyFolder": "This folder is empty",
+  "folderExplorerNoOrgFiles": "No .org files in this folder",
+  "folderExplorerLoading": "Loading...",
+  "folderExplorerError": "Error loading folder",
+
+  "menuItemConfigureFolder": "Change folder",
+
+  "sectionHeaderStarredFiles": "Starred",
+  "sectionHeaderRecentFiles": "Recent",
   "recentFilesSortDialogTitle": "Sort by",
   "sortKeyLastOpened": "Last opened",
   "sortKeyName": "Name",

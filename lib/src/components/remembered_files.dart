@@ -40,7 +40,8 @@ class RememberedFile {
         lastOpened: DateTime.fromMillisecondsSinceEpoch(
           json['lastOpened'] as int,
         ),
-        pinnedIdx: json['pinnedIdx'] as int? ?? -1,
+        // Keep reading from 'pinnedIdx' for backward compatibility
+        starredIdx: json['pinnedIdx'] as int? ?? -1,
       );
 
   const RememberedFile({
@@ -48,17 +49,17 @@ class RememberedFile {
     required this.name,
     required this.uri,
     required this.lastOpened,
-    this.pinnedIdx = -1,
-  }) : assert(pinnedIdx >= -1, 'Pinned index must be -1 or >= 0');
+    this.starredIdx = -1,
+  }) : assert(starredIdx >= -1, 'Starred index must be -1 or >= 0');
 
   final String identifier;
   final String name;
   final String uri;
   final DateTime lastOpened;
-  final int pinnedIdx;
+  final int starredIdx;
 
-  bool get isPinned => pinnedIdx != -1;
-  bool get isNotPinned => !isPinned;
+  bool get isStarred => starredIdx != -1;
+  bool get isNotStarred => !isStarred;
 
   @override
   bool operator ==(Object other) =>
@@ -67,17 +68,18 @@ class RememberedFile {
       name == other.name &&
       uri == other.uri &&
       lastOpened == other.lastOpened &&
-      pinnedIdx == other.pinnedIdx;
+      starredIdx == other.starredIdx;
 
   @override
-  int get hashCode => Object.hash(identifier, name, uri, lastOpened, pinnedIdx);
+  int get hashCode => Object.hash(identifier, name, uri, lastOpened, starredIdx);
 
   Map<String, Object> toJson() => {
     'identifier': identifier,
     'name': name,
     'uri': uri,
     'lastOpened': lastOpened.millisecondsSinceEpoch,
-    'pinnedIdx': pinnedIdx,
+    // Keep writing to 'pinnedIdx' for backward compatibility
+    'pinnedIdx': starredIdx,
   };
 
   RememberedFile copyWith({
@@ -85,17 +87,17 @@ class RememberedFile {
     String? name,
     String? uri,
     DateTime? lastOpened,
-    int? pinnedIdx,
+    int? starredIdx,
   }) => RememberedFile(
     identifier: identifier ?? this.identifier,
     name: name ?? this.name,
     uri: uri ?? this.uri,
     lastOpened: lastOpened ?? this.lastOpened,
-    pinnedIdx: pinnedIdx ?? this.pinnedIdx,
+    starredIdx: starredIdx ?? this.starredIdx,
   );
 
   @override
-  String toString() => 'RecentFile[$name:$_debugShortIdentifier]($pinnedIdx)';
+  String toString() => 'RecentFile[$name:$_debugShortIdentifier]($starredIdx)';
 
   String get _debugShortIdentifier {
     final length = identifier.length;
@@ -116,8 +118,8 @@ class InheritedRememberedFiles extends InheritedWidget {
     this.sortOrder, {
     required this.add,
     required this.remove,
-    required this.pin,
-    required this.unpin,
+    required this.star,
+    required this.unstar,
     required super.child,
     super.key,
   });
@@ -127,14 +129,14 @@ class InheritedRememberedFiles extends InheritedWidget {
   final SortOrder sortOrder;
   final AsyncValueSetter<List<RememberedFile>> add;
   final AsyncValueSetter<RememberedFile> remove;
-  final ValueChanged<RememberedFile> pin;
-  final ValueChanged<RememberedFile> unpin;
+  final ValueChanged<RememberedFile> star;
+  final ValueChanged<RememberedFile> unstar;
 
-  List<RememberedFile> get pinned =>
-      list.where((f) => f.isPinned).toList()
-        ..sort((a, b) => a.pinnedIdx.compareTo(b.pinnedIdx));
+  List<RememberedFile> get starred =>
+      list.where((f) => f.isStarred).toList()
+        ..sort((a, b) => a.starredIdx.compareTo(b.starredIdx));
 
-  List<RememberedFile> get recents => list.where((f) => f.isNotPinned).toList();
+  List<RememberedFile> get recents => list.where((f) => f.isNotStarred).toList();
 
   bool get hasRememberedFiles => list.isNotEmpty;
 
@@ -169,13 +171,13 @@ class _RememberedFilesState extends State<RememberedFiles> {
     await _reloadFuture;
     newFiles = newFiles
         .map((newFile) {
-          // If the new file is pinned, we don't need to absorb an existing pin
-          if (newFile.isPinned) return newFile;
+          // If the new file is starred, we don't need to absorb an existing star
+          if (newFile.isStarred) return newFile;
           final existingFile = _rememberedFiles
               .where((f) => f.uri == newFile.uri)
               .firstOrNull;
           if (existingFile == null) return newFile;
-          return newFile.copyWith(pinnedIdx: existingFile.pinnedIdx);
+          return newFile.copyWith(starredIdx: existingFile.starredIdx);
         })
         .toList(growable: false);
     debugPrint('Adding recent files: $newFiles');
@@ -194,12 +196,12 @@ class _RememberedFilesState extends State<RememberedFiles> {
     _prefs.removeRecentFile(recentFile);
   }
 
-  void pinFile(RememberedFile recentFile) {
-    _prefs.pinFile(recentFile);
+  void starFile(RememberedFile recentFile) {
+    _prefs.starFile(recentFile);
   }
 
-  void unpinFile(RememberedFile recentFile) {
-    _prefs.unpinFile(recentFile);
+  void unstarFile(RememberedFile recentFile) {
+    _prefs.unstarFile(recentFile);
   }
 
   @override
@@ -240,8 +242,8 @@ class _RememberedFilesState extends State<RememberedFiles> {
       _prefs.recentFilesSortOrder,
       add: addRecentFiles,
       remove: removeRecentFile,
-      pin: pinFile,
-      unpin: unpinFile,
+      star: starFile,
+      unstar: unstarFile,
       child: widget.child,
     );
   }
