@@ -160,6 +160,18 @@ abstract class AppLocalizations {
   /// **'Open URL'**
   String get menuItemOpenUrl;
 
+  /// No description provided for @readerDrawerClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Reader'**
+  String get readerDrawerClose;
+
+  /// No description provided for @readerDrawerRecentFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Files'**
+  String get readerDrawerRecentFiles;
+
   /// No description provided for @quickActionNewDocument.
   ///
   /// In en, this message translates to:
@@ -429,6 +441,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Configure folder'**
   String get tooltipConfigureFolder;
+
+  /// No description provided for @tooltipSearchFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Search files'**
+  String get tooltipSearchFiles;
 
   /// No description provided for @buttonSupport.
   ///

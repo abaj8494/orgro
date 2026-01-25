@@ -36,6 +36,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get menuItemOpenUrl => 'URLを開く';
 
   @override
+  String get readerDrawerClose => 'Exit Reader';
+
+  @override
+  String get readerDrawerRecentFiles => 'Recent Files';
+
+  @override
   String get quickActionNewDocument => '新規ドキュメント';
 
   @override
@@ -187,6 +193,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
+  String get tooltipSearchFiles => 'Search files';
 
   @override
   String get buttonSupport => 'サポート・お問い合わせ';

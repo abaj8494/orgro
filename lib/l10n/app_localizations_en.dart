@@ -36,6 +36,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuItemOpenUrl => 'Open URL';
 
   @override
+  String get readerDrawerClose => 'Exit Reader';
+
+  @override
+  String get readerDrawerRecentFiles => 'Recent Files';
+
+  @override
   String get quickActionNewDocument => 'New Document';
 
   @override
@@ -190,6 +196,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
+  String get tooltipSearchFiles => 'Search files';
 
   @override
   String get buttonSupport => 'Support · Feedback';
@@ -1548,6 +1557,12 @@ class AppLocalizationsEnUs extends AppLocalizationsEn {
   String get menuItemOpenUrl => 'Open URL';
 
   @override
+  String get readerDrawerClose => 'Exit Reader';
+
+  @override
+  String get readerDrawerRecentFiles => 'Recent Files';
+
+  @override
   String get quickActionNewDocument => 'New Document';
 
   @override
@@ -1702,6 +1717,9 @@ class AppLocalizationsEnUs extends AppLocalizationsEn {
 
   @override
   String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
+  String get tooltipSearchFiles => 'Search files';
 
   @override
   String get buttonSupport => 'Support · Feedback';

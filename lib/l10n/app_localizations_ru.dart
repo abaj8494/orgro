@@ -36,6 +36,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get menuItemOpenUrl => 'Открыть URL-адрес';
 
   @override
+  String get readerDrawerClose => 'Exit Reader';
+
+  @override
+  String get readerDrawerRecentFiles => 'Recent Files';
+
+  @override
   String get quickActionNewDocument => 'Новый документ';
 
   @override
@@ -192,6 +198,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get tooltipConfigureFolder => 'Configure folder';
+
+  @override
+  String get tooltipSearchFiles => 'Search files';
 
   @override
   String get buttonSupport => 'Поддержка · Обратная связь';
