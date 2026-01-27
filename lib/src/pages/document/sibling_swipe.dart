@@ -34,13 +34,21 @@ class SiblingSwipeDetector extends StatefulWidget {
   final bool canSwipeRight;
   final bool enabled;
 
+  /// Reset the swipe tracking state. Call this when a Slidable opens
+  /// to prevent the next swipe from being treated as a "second swipe".
+  static void resetTracking() {
+    debugPrint('Sibling swipe: Resetting tracking (Slidable opened)');
+    _SiblingSwipeDetectorState._lastSwipeTime = null;
+    _SiblingSwipeDetectorState._lastSwipeWasLeft = null;
+  }
+
   @override
   State<SiblingSwipeDetector> createState() => _SiblingSwipeDetectorState();
 }
 
 class _SiblingSwipeDetectorState extends State<SiblingSwipeDetector> {
   // Minimum horizontal distance to trigger sibling navigation
-  static const _minDragDistance = 2.0;
+  static const _minDragDistance = 30.0;
   // Maximum vertical distance before cancelling (prevents scroll confusion)
   static const _maxVerticalDistance = 60.0;
   // Time window for second swipe to trigger navigation

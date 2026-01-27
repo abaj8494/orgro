@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:org_flutter/org_flutter.dart';
+import 'package:orgro/src/pages/document/sibling_swipe.dart';
 import 'package:orgro/src/transclusion/transclusion_directive.dart';
 import 'package:orgro/src/transclusion/transclusion_widget.dart';
 
@@ -210,12 +211,68 @@ class TransclusionAwareSectionWidget extends StatelessWidget {
   Widget _withSlideActions(BuildContext context, Widget child) {
     final actions = OrgEvents.of(context).onSectionSlide?.call(section);
     if (actions == null) return child;
+    return _SwipeTrackingSlidable(
+      actions: actions,
+      child: child,
+    );
+  }
+}
+
+/// A Slidable wrapper that resets swipe tracking when it opens.
+///
+/// This prevents accidental sibling navigation when the user repeatedly
+/// opens/closes the TODO cycle slidable.
+class _SwipeTrackingSlidable extends StatefulWidget {
+  const _SwipeTrackingSlidable({
+    required this.actions,
+    required this.child,
+  });
+
+  final List<Widget> actions;
+  final Widget child;
+
+  @override
+  State<_SwipeTrackingSlidable> createState() => _SwipeTrackingSlidableState();
+}
+
+class _SwipeTrackingSlidableState extends State<_SwipeTrackingSlidable>
+    with SingleTickerProviderStateMixin {
+  late final SlidableController _controller;
+  bool _wasOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = SlidableController(this);
+    _controller.animation.addListener(_onAnimationChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller.animation.removeListener(_onAnimationChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onAnimationChanged() {
+    final isOpen = _controller.ratio.abs() > 0.1;
+    if (isOpen && !_wasOpen) {
+      // Slidable is opening - reset swipe tracking to prevent
+      // the next swipe from being treated as a "second swipe"
+      SiblingSwipeDetector.resetTracking();
+    }
+    _wasOpen = isOpen;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Slidable(
+      controller: _controller,
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
-        children: actions,
+        children: widget.actions,
       ),
-      child: child,
+      child: widget.child,
     );
   }
 }
