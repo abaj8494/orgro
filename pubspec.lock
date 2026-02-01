@@ -648,7 +648,7 @@ packages:
     source: hosted
     version: "10.3.1"
   org_parser:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: org_parser
       sha256: cd396ec796922b0485952d4e92386eb219186cdcbd5378af4c2526db6aa6ba06
@@ -672,7 +672,7 @@ packages:
     source: hosted
     version: "3.2.1"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
