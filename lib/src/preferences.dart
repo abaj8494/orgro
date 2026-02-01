@@ -74,6 +74,7 @@ const kAgendaNotificationsPolicyKey = 'agenda_notifications_policy';
 const kConfiguredFolderIdentifierKey = 'configured_folder_identifier';
 const kConfiguredFolderUriKey = 'configured_folder_uri';
 const kConfiguredFolderNameKey = 'configured_folder_name';
+const kVisibilityStateJsonKey = 'visibility_state_json';
 
 const _kMigrationCompletedKey = 'migration_completed_key';
 

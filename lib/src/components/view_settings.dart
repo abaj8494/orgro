@@ -185,6 +185,34 @@ class InheritedViewSettings extends InheritedWidget {
     }
   }
 
+  /// Get saved visibility state for a document
+  Map<String, String>? getVisibilityState(String documentKey) {
+    debugPrint('>>> getVisibilityState for key: $documentKey');
+    final allData = _prefs.scopedPreferences;
+    debugPrint('>>> All scoped data keys: ${allData.keys.toList()}');
+    final scopedData = allData[documentKey];
+    if (scopedData == null) {
+      debugPrint('>>> No scoped data found for this document');
+      return null;
+    }
+    debugPrint('>>> Scoped data keys: ${scopedData.keys.toList()}');
+    final visibilityJson = scopedData[kVisibilityStateJsonKey];
+    if (visibilityJson == null) {
+      debugPrint('>>> No visibility state in scoped data');
+      return null;
+    }
+    debugPrint('>>> Found visibility json: $visibilityJson');
+    return Map<String, String>.from(visibilityJson as Map);
+  }
+
+  /// Save visibility state for a document
+  void setVisibilityState(String documentKey, Map<String, String> visibility) {
+    debugPrint('>>> setVisibilityState for key: $documentKey');
+    debugPrint('>>> Visibility data: $visibility');
+    _setScopedValue(documentKey, kVisibilityStateJsonKey, visibility);
+    debugPrint('>>> setVisibilityState completed');
+  }
+
   @override
   bool updateShouldNotify(InheritedViewSettings oldWidget) =>
       data != oldWidget.data;

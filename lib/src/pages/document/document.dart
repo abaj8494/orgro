@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:org_flutter/org_flutter.dart';
 import 'package:orgro/l10n/app_localizations.dart';
 import 'package:orgro/src/actions/actions.dart';
@@ -146,6 +147,8 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSiblingFiles();
+      // Restore saved visibility state before handling initial target
+      _restoreVisibilityState();
       handleInitialTarget(widget.initialTarget);
       ensureOpenOnNarrow();
       if (widget.initialTarget == null) {
@@ -159,6 +162,15 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
         }
       }
     });
+  }
+
+  @override
+  void deactivate() {
+    debugPrint('>>> DocumentPageState.deactivate() CALLED');
+    // Save visibility state before the widget is removed from the tree
+    // Using deactivate() instead of dispose() because context is still valid here
+    _saveVisibilityState();
+    super.deactivate();
   }
 
   @override
@@ -260,6 +272,132 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
       WakelockPlus.disable().onError(logError);
     }
     super.dispose();
+  }
+
+  /// Convert OrgVisibilityState to string for storage
+  String _visibilityToString(OrgVisibilityState state) => state.name;
+
+  /// Convert string back to OrgVisibilityState
+  OrgVisibilityState? _visibilityFromString(String? value) {
+    if (value == null) return null;
+    return OrgVisibilityState.values
+        .cast<OrgVisibilityState?>()
+        .firstWhere((s) => s?.name == value, orElse: () => null);
+  }
+
+  /// Save the current visibility state of all sections to preferences
+  void _saveVisibilityState() {
+    debugPrint('>>> _saveVisibilityState() CALLED');
+    try {
+      final controller = OrgController.of(context);
+      final doc = _doc;
+      final visibility = <String, String>{};
+
+      doc.visitSections((section) {
+        final title = section.headline.rawTitle;
+        if (title != null && title.isNotEmpty) {
+          final state = controller.nodeFor(section).visibility.value;
+          visibility[title] = _visibilityToString(state);
+          debugPrint('  Section "$title" -> ${state.name}');
+        }
+        return true;
+      });
+
+      if (visibility.isNotEmpty) {
+        final scopeKey = _dataSource.id;
+        debugPrint('>>> Saving ${visibility.length} sections to key: $scopeKey');
+        debugPrint('>>> Visibility map: $visibility');
+        _viewSettings.setVisibilityState(scopeKey, visibility);
+        debugPrint('>>> Save completed');
+      } else {
+        debugPrint('>>> No sections to save');
+      }
+    } catch (e, s) {
+      debugPrint('>>> _saveVisibilityState ERROR: $e');
+      logError(e, s);
+    }
+  }
+
+  /// Restore saved visibility state for all sections
+  void _restoreVisibilityState() {
+    debugPrint('>>> _restoreVisibilityState() CALLED');
+    try {
+      final scopeKey = _dataSource.id;
+      debugPrint('>>> Looking for saved state with key: $scopeKey');
+      final savedVisibility = _viewSettings.getVisibilityState(scopeKey);
+      if (savedVisibility == null || savedVisibility.isEmpty) {
+        debugPrint('>>> No saved visibility state found (null or empty)');
+        return;
+      }
+
+      debugPrint('>>> Found saved visibility: $savedVisibility');
+
+      // Delay the actual restoration to avoid conflicts with OrgController's
+      // own restoration mechanism. OrgController uses Flutter's RestorationMixin
+      // which can be updating during route transitions. We need to wait until
+      // the restoration phase is completely finished.
+      _scheduleVisibilityRestore(savedVisibility);
+    } catch (e, s) {
+      debugPrint('>>> _restoreVisibilityState ERROR: $e');
+      logError(e, s);
+    }
+  }
+
+  /// Schedule visibility restore using idle task to avoid restoration conflicts
+  void _scheduleVisibilityRestore(Map<String, String> savedVisibility, [int attempt = 0]) {
+    if (!mounted || attempt > 5) {
+      if (attempt > 5) {
+        debugPrint('>>> Gave up restoring visibility after $attempt attempts');
+      }
+      return;
+    }
+
+    // Use scheduleTask with idle priority to run after restoration is complete
+    // This ensures we don't interfere with OrgController's own restoration
+    SchedulerBinding.instance.scheduleTask(() {
+      if (!mounted) return;
+
+      // Additional delay to ensure we're past any restoration phase
+      Future.delayed(Duration(milliseconds: 50 + (attempt * 100)), () {
+        if (!mounted) return;
+        debugPrint('>>> Attempting visibility restore (attempt ${attempt + 1})');
+        final success = _applyVisibilityState(savedVisibility);
+        if (!success && attempt < 5) {
+          debugPrint('>>> Visibility restore failed, scheduling retry ${attempt + 1}');
+          _scheduleVisibilityRestore(savedVisibility, attempt + 1);
+        }
+      });
+    }, Priority.idle);
+  }
+
+  /// Apply saved visibility state to sections, returns true if successful
+  bool _applyVisibilityState(Map<String, String> savedVisibility) {
+    try {
+      final controller = OrgController.of(context);
+      final doc = _doc;
+      var restored = 0;
+
+      doc.visitSections((section) {
+        final title = section.headline.rawTitle;
+        if (title != null && savedVisibility.containsKey(title)) {
+          final stateString = savedVisibility[title];
+          final state = _visibilityFromString(stateString);
+          if (state != null) {
+            debugPrint('>>> Restoring "$title" to ${state.name}');
+            controller.setVisibilityOf(section, (_) => state);
+            restored++;
+          }
+        }
+        return true;
+      });
+
+      debugPrint('>>> Restored visibility state for $restored sections');
+      return true;
+    } catch (e, s) {
+      debugPrint('>>> _applyVisibilityState ERROR: $e');
+      // Don't log as fatal error - this is expected during restoration conflicts
+      return false;
+    }
   }
 
   Widget _title(bool searchMode) {
@@ -1045,6 +1183,10 @@ class DocumentPageState extends State<DocumentPage> with RestorationMixin {
     if (_siblingFiles == null) return;
     final newIndex = _currentFileIndex + direction;
     if (newIndex < 0 || newIndex >= _siblingFiles!.length) return;
+
+    // Save visibility state BEFORE navigating so the next document can restore
+    debugPrint('>>> Saving visibility before sibling navigation');
+    _saveVisibilityState();
 
     final entry = _siblingFiles![newIndex];
     final source = _dataSource;
