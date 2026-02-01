@@ -10,6 +10,9 @@ import 'package:flutter/material.dart';
 /// - Second swipe (within 2 seconds): Triggers navigation
 ///
 /// Special case: Swipe from left edge (within 60px) opens the drawer.
+///
+/// Suppresses navigation when the user is scrolling a horizontally scrollable
+/// widget (e.g., tables).
 class SiblingSwipeDetector extends StatefulWidget {
   const SiblingSwipeDetector({
     required this.child,
@@ -62,20 +65,42 @@ class _SiblingSwipeDetectorState extends State<SiblingSwipeDetector> {
   bool _isTracking = false;
   bool _isFromLeftEdge = false;
 
+  // Track when a horizontal scroll is active (e.g., scrolling a table)
+  bool _isHorizontalScrollActive = false;
+
   // Track last swipe for double-swipe detection (static to persist across rebuilds)
   static DateTime? _lastSwipeTime;
   static bool? _lastSwipeWasLeft; // true = left (next), false = right (previous)
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: _onPointerDown,
-      onPointerMove: _onPointerMove,
-      onPointerUp: _onPointerUp,
-      onPointerCancel: _reset,
-      child: widget.child,
+    return NotificationListener<ScrollNotification>(
+      onNotification: _handleScrollNotification,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _reset,
+        child: widget.child,
+      ),
     );
+  }
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    // Detect horizontal scroll from nested scrollables (e.g., tables)
+    final metrics = notification.metrics;
+    if (metrics.axis == Axis.horizontal) {
+      if (notification is ScrollStartNotification) {
+        _isHorizontalScrollActive = true;
+        // Cancel any in-progress swipe tracking when horizontal scroll starts
+        _reset(null);
+      } else if (notification is ScrollEndNotification) {
+        _isHorizontalScrollActive = false;
+      }
+    }
+    // Don't consume the notification
+    return false;
   }
 
   void _onPointerDown(PointerDownEvent event) {
@@ -101,6 +126,12 @@ class _SiblingSwipeDetectorState extends State<SiblingSwipeDetector> {
 
   void _onPointerUp(PointerUpEvent event) {
     if (!_isTracking || _startX == null) {
+      _reset(event);
+      return;
+    }
+
+    // Skip if user was scrolling a horizontal scrollable (e.g., a table)
+    if (_isHorizontalScrollActive) {
       _reset(event);
       return;
     }
