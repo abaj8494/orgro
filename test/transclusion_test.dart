@@ -8,7 +8,7 @@ import 'package:orgro/src/transclusion/transclusion_cache.dart';
 
 /// Mock DataSource for testing
 class MockDataSource extends DataSource {
-  MockDataSource(String name) : super(name);
+  MockDataSource(super.name);
 
   @override
   String get id => 'mock:$name';
